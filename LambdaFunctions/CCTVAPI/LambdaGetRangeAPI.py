@@ -37,7 +37,7 @@ def lambda_handler(event, context):
 
     else:
         
-        return "No Hour Specified!"
+        return "No Hour Specified!"\
 
 
     # startMin = event['startMin']
@@ -60,28 +60,95 @@ def lambda_handler(event, context):
         # Get the keys for all of the objects in that folder
         Foundkeys = getObjectKeys(response["Contents"])
         
-        urls = []
-        
-        for key in Foundkeys:
-            
-            #Build the URL
-            url = buacketAccessURL + key
-            
-            # Get the URL signed
-            Params = { 'Bucket': bucketName, 'Key': key }
-            
-            signedURL = client.generate_presigned_url('get_object', Params, ExpiresIn = 500)
-            
-            #Add the signed URL to the data structure
-            urls.append(signedURL)
-        
-        return urls
-    
+
+
+
+
+        # Get the keys signed
+        urls = signKeys(client , Foundkeys)
+
+
     
     else:
         print("There are no objects avalible")
 
-    
+
+
+
+
+
+
+
+'''
+        # Functions
+'''
+
+
+
+"""
+checkTime
+
+Checks that the passed time is within ranges, 
+
+time : string: The time to check, expected in HHMM eg 0855 for 8:55 AM
+returns : boolean : pass or fail check
+"""
+def checkTime(time):
+
+
+    if !(len(time) == 4):
+
+        # Check fails, time length should be 4 charactors
+        print("Supplied Time Fails Validation, there should be exactly 4 charactors supplied.")
+        return false
+
+    elif !(0 <= time[02] <= 24) :
+
+        # Check fails, hours are perculiar.
+        print("Supplied Time Fails Validation, Hours are perculiar.")
+        return false
+
+    elif !(0 <= time[35] <= 60) 
+
+        # Check fails, Minutes are perculiar.
+        print("Supplied Time Fails Validation, Minutes are perculiar.")
+        return false
+
+    else:
+
+        return true
+
+
+
+"""
+Filter keys to between to given times
+
+startHHMM : string : The start time, in HHMM form eg 0515 for 5:15 AM
+finishHHMM : string : The finish time, in the HHMM form. eg 1444 for 2:44 PM 
+keys : list : keys that are to be filtered
+
+returns : list : all of the keys passed that pass teh filter requirments
+
+"""
+def filterBetweenTimes(startHHMM , finishHHMM, keys):
+
+    filteredKeys = []
+
+    for key in keys:
+
+        if  startHHMM[0:2] <= key[14:18] <= finishHHMM[2:4] :
+
+            print("start: " , startHHMM[0:2])
+            print("Finish: " , startHHMM[2:4])
+            print("Key: " ,  key[14:18])
+
+            filteredKeys.append(key)
+
+
+    return filteredKeys
+
+
+
 """
 Get all of the keys from a given response Contents list, this is the response
 returned by the boto3.client object.
@@ -105,3 +172,29 @@ def getFolder():
     todaysFolder = time.strftime("%Y/%m/%d")
 
     return todaysFolder
+
+
+"""
+Gets the signed URL for the given keys, returns as a lift of URLs in the same order as passed.
+
+s3Client : The S3 client object from the boto3 lib
+keys : S3 key
+secondsActive : The number of seconds the signed link should remain active for (default 500)
+
+"""
+def signKeys(s3Client, keys, secondsActive = 500):
+
+    urls = []
+
+    for key in keys:
+
+        # Get the URL signed
+        Params = { 'Bucket': bucketName, 'Key': key }
+            
+        # Get the URL signed
+        signedURL = s3Client.generate_presigned_url('get_object', Params, secondsActive)
+            
+        # Add the signed URL to the data structure
+        urls.append(signedURL)
+
+    return urls
