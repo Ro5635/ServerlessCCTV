@@ -26,53 +26,48 @@ def lambda_handler(event, context):
     client = boto3.client('s3')
     bucket = s3.Bucket(bucketName)
 
-    if len(event['startHour']) == 2:
-        
-        startHour = event['startHour']
-    
-    elif  len(event['startHour']) == 1:
 
-        # And this is why I prefer type safe languages...
-        startHour = "0" +  event['startHour']
+    searchDate = event['searchDate']
+    startTime  = event['startTime']
+    finishTime = event['finishTime']
+
+    if checkTime(startTime) and checkTime(finishTime) and checkDate(searchDate):
+
+        objectPrefix = bucketSourceFolder + "/" + event['searchDate']  + "/img" + startTime
+    
+        print("getting prefix: " , objectPrefix)
+
+
+        response = client.list_objects(
+            Bucket='acsstest',
+            EncodingType='url',
+            MaxKeys=9999,
+            Prefix=objectPrefix
+        )
+        
+        #Does the searched location contain any objects?
+        if 'Contents' in response.keys():
+            
+            # Get the keys for all of the objects in that folder
+            Foundkeys = getObjectKeys(response["Contents"])
+            
+
+            filteredKeys = filterBetweenTimes(startTime , finishTime, Foundkeys)
+
+
+
+            # Get the keys signed
+            urls = signKeys(client , filteredKeys)
+
+
+        
+        else:
+            print("There are no objects avalible")
+
 
     else:
-        
-        return "No Hour Specified!"\
 
-
-    # startMin = event['startMin']
-
-    objectPrefix = bucketSourceFolder + "/" + event['startDate']  + "/img" + startHour
-    
-    print("getting prefix: " , objectPrefix)
-
-
-    response = client.list_objects(
-        Bucket='acsstest',
-        EncodingType='url',
-        MaxKeys=9999,
-        Prefix=objectPrefix
-    )
-    
-    #Does the searched location contain any objects?
-    if 'Contents' in response.keys():
-        
-        # Get the keys for all of the objects in that folder
-        Foundkeys = getObjectKeys(response["Contents"])
-        
-
-
-
-
-        # Get the keys signed
-        urls = signKeys(client , Foundkeys)
-
-
-    
-    else:
-        print("There are no objects avalible")
-
-
+        print("Quitting, Check Failed")
 
 
 
@@ -82,6 +77,33 @@ def lambda_handler(event, context):
 '''
         # Functions
 '''
+
+
+"""
+checkDate
+
+Validates the passed date, that date should be in the format YYYYMMDD
+"""
+def checkDate(date):
+
+    if len(date) != 8:
+
+        # Supplied date fails validation
+        print("Supplied Date Fails Validation, 10 charactor date expected.")
+        return False
+
+    elif not (date.isdigit()):
+        
+        # Supplied date fails validation
+        print("Supplied Date Fails Validation, only numbers should form the date.")
+        return False
+    
+    else:
+
+        # validation passed; return true
+        
+        return True
+
 
 
 
@@ -96,23 +118,23 @@ returns : boolean : pass or fail check
 def checkTime(time):
 
 
-    if !(len(time) == 4):
+    if len(time) != 4:
 
         # Check fails, time length should be 4 charactors
         print("Supplied Time Fails Validation, there should be exactly 4 charactors supplied.")
-        return false
+        return False
 
-    elif !(0 <= time[02] <= 24) :
+    elif not (0 <= time[0:2] <= 24) :
 
         # Check fails, hours are perculiar.
         print("Supplied Time Fails Validation, Hours are perculiar.")
-        return false
+        return False
 
-    elif !(0 <= time[35] <= 60) 
+    elif not (0 <= time[3:5] <= 60) :
 
         # Check fails, Minutes are perculiar.
         print("Supplied Time Fails Validation, Minutes are perculiar.")
-        return false
+        return False
 
     else:
 
@@ -134,15 +156,30 @@ def filterBetweenTimes(startHHMM , finishHHMM, keys):
 
     filteredKeys = []
 
+    # Debug; log the variables used:
+    print("start: " , startHHMM[0:2])
+    print("Finish: " , startHHMM[2:4])
+    print("Key: " ,  key[14:18])
+
+
+    # Go through each key and see if it matches the time range
     for key in keys:
 
-        if  startHHMM[0:2] <= key[14:18] <= finishHHMM[2:4] :
+        # Filter by the hours
+        if  startHHMM[0:2] <= key[14:16] <= finishHHMM[0:2] :
 
-            print("start: " , startHHMM[0:2])
-            print("Finish: " , startHHMM[2:4])
-            print("Key: " ,  key[14:18])
+            # if its either the start or end hours check the minute
+            if key[14:16] == startHHMM[0:2] or key[14:16] == finishHHMM[0:2] :
 
-            filteredKeys.append(key)
+                if startHHMM[2:4] <= key[16:18] and key[16:18]  <= finishHHMM[2:4] :
+
+                    # Minutes within range, add to the filteredkeys list.
+
+                    filteredKeys.append(key)
+
+            else:
+
+                filteredKeys.append(key)
 
 
     return filteredKeys
