@@ -33,7 +33,7 @@ def lambda_handler(event, context):
 
     if checkTime(startTime) and checkTime(finishTime) and checkDate(searchDate):
 
-        objectPrefix = bucketSourceFolder + "/" + event['searchDate']  + "/img" + startTime
+        objectPrefix = bucketSourceFolder + "/" + searchDate[0:4] + "/" + searchDate[4:6] + "/" + searchDate[6:8] + "/img"
     
         print("getting prefix: " , objectPrefix)
 
@@ -59,10 +59,12 @@ def lambda_handler(event, context):
             # Get the keys signed
             urls = signKeys(client , filteredKeys)
 
+            return urls
 
         
         else:
             print("There are no objects avalible")
+            return(0)
 
 
     else:
@@ -117,20 +119,20 @@ returns : boolean : pass or fail check
 """
 def checkTime(time):
 
-
+    print("time check: ", int(time[2:4]) - 1 )
     if len(time) != 4:
 
         # Check fails, time length should be 4 charactors
         print("Supplied Time Fails Validation, there should be exactly 4 charactors supplied.")
         return False
 
-    elif not (0 <= time[0:2] <= 24) :
+    elif not (0 <= int(time[0:2]) <= 24 or int(time[0:2]) == "00") :
 
         # Check fails, hours are perculiar.
         print("Supplied Time Fails Validation, Hours are perculiar.")
         return False
 
-    elif not (0 <= time[3:5] <= 60) :
+    elif not (0 <= int(time[2:4]) <= 60 or int(time[2:4]) == "00") :
 
         # Check fails, Minutes are perculiar.
         print("Supplied Time Fails Validation, Minutes are perculiar.")
@@ -138,7 +140,7 @@ def checkTime(time):
 
     else:
 
-        return true
+        return True
 
 
 
@@ -159,29 +161,35 @@ def filterBetweenTimes(startHHMM , finishHHMM, keys):
     # Debug; log the variables used:
     print("start: " , startHHMM[0:2])
     print("Finish: " , startHHMM[2:4])
-    print("Key: " ,  key[14:18])
-
+    # print("Key: " ,  key[14:18])
 
     # Go through each key and see if it matches the time range
     for key in keys:
+        
+        # Get the time stamp from teh key:
+        splitKey = key.split('/')
+        timeStamp = splitKey[ ( len(splitKey) - 1 ) ]
+        timeStamp = timeStamp[  ( len(timeStamp) - 8 )  : ( len(timeStamp) - 4) ]
 
         # Filter by the hours
-        if  startHHMM[0:2] <= key[14:16] <= finishHHMM[0:2] :
+        if  startHHMM[0:2] <= timeStamp[0:2] <= finishHHMM[0:2] :
 
             # if its either the start or end hours check the minute
-            if key[14:16] == startHHMM[0:2] or key[14:16] == finishHHMM[0:2] :
+            if timeStamp[0:2] == startHHMM[0:2] or timeStamp[0:2] == finishHHMM[0:2] :
 
-                if startHHMM[2:4] <= key[16:18] and key[16:18]  <= finishHHMM[2:4] :
+                if startHHMM[2:4] <= timeStamp[2:4] and timeStamp[2:4]  <= finishHHMM[2:4] :
 
                     # Minutes within range, add to the filteredkeys list.
-
+                    print("Appending Key after check min")
                     filteredKeys.append(key)
 
             else:
-
+                print("Appending Key after check Hour only: " + key)
                 filteredKeys.append(key)
 
-
+        else:
+            # print("Key not applicable: " + key)
+            syntax = 7 + 2
     return filteredKeys
 
 
@@ -195,7 +203,7 @@ def getObjectKeys(responseContents):
     keys = []
     
     for s3Object in responseContents:
-        print (s3Object["Key"])
+        # print (s3Object["Key"])
         keys.append(s3Object["Key"])
     
     return keys
