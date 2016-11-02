@@ -6,6 +6,25 @@ import boto3
 import time
 
 
+"""
+This function allows you to get all of the images with in a range of times on a given date, an example of the data required to be passed is bellow:
+
+
+{
+  "searchDate": "20161027",
+  "startTime": "0021",
+  "finishTime":"0053"
+}
+
+Images matching the required time range willl be signed an returned. By default the keys will be active for 500 seconds, after this access will be 
+deigned.
+
+
+author: robert curran robert@robertcurran.co.uk
+date: 2/11/16
+
+"""
+
 bucketName = "acsstest"
 
 #AWS data centre name; example eu-west-1.
