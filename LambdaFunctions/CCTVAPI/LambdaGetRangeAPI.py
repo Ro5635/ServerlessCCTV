@@ -46,9 +46,9 @@ def lambda_handler(event, context):
     bucket = s3.Bucket(bucketName)
 
 
-    searchDate = event['searchDate']
-    startTime  = event['startTime']
-    finishTime = event['finishTime']
+    searchDate =  event['params']['querystring']['searchDate']
+    startTime  = event['params']['querystring']['startTime']
+    finishTime = event['params']['querystring']['finishTime']
 
     if checkTime(startTime) and checkTime(finishTime) and checkDate(searchDate):
 
